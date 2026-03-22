@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +22,6 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -44,10 +42,10 @@ export default function LoginPage() {
       const res = await loginUser(data.email, data.password);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       Cookies.set("token", (res as any)?.token, { expires: 1, sameSite: "lax" });
-      router.replace("/dashboard");
+      // Hard navigation so the server-side middleware sees the new cookie
+      globalThis.location.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
       setLoading(false);
     }
   }

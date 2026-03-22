@@ -636,14 +636,14 @@ export default function TransactionsPage() {
               </div>
 
               {/* Mobile cards */}
-              <div className="flex flex-col gap-2 md:hidden">
+              <div className="flex flex-col gap-2.5 md:hidden">
                 {transactions.map((tx) => {
                   const cfg = TYPE_CONFIG[tx.type]
                   const Icon = cfg.icon
                   return (
                     <div
                       key={tx.id}
-                      className="rounded-lg border border-border bg-card p-3 active:bg-muted/30 transition-colors"
+                      className="rounded-lg border border-border bg-card p-4 active:bg-muted/30 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -680,10 +680,10 @@ export default function TransactionsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="size-7 p-0 text-muted-foreground hover:text-destructive"
+                            className="size-8 p-0 text-muted-foreground hover:text-destructive"
                             onClick={() => setDeleteTarget(tx)}
                           >
-                            <Trash2Icon className="size-3.5" />
+                            <Trash2Icon className="size-4" />
                           </Button>
                         </div>
                       </div>

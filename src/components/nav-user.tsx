@@ -22,7 +22,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, LogOutIcon, UserIcon } from "lucide-react"
+import { ChevronsUpDownIcon, LogOutIcon, UserIcon, RefreshCwIcon } from "lucide-react"
 
 export function NavUser({
   user,
@@ -90,6 +90,14 @@ export function NavUser({
               <DropdownMenuItem>
                 <UserIcon />
                 Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                localStorage.clear()
+                sessionStorage.clear()
+                window.location.reload()
+              }}>
+                <RefreshCwIcon />
+                Clear Cache
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

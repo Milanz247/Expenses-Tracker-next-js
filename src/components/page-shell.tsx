@@ -1,9 +1,9 @@
 "use client"
 
-import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Cookies from "js-cookie"
-import { LogOutIcon } from "lucide-react"
+import { LogOutIcon, RefreshCwIcon } from "lucide-react"
+import { invalidateCache } from "@/lib/api"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -29,11 +29,11 @@ interface PageShellProps {
 }
 
 export function PageShell({ user, title, children, headerActions }: PageShellProps) {
-  const router = useRouter()
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000)
+    // Update once per minute — seconds not shown, avoids constant re-renders
+    const timer = setInterval(() => setNow(new Date()), 60_000)
     return () => clearInterval(timer)
   }, [])
 
@@ -58,7 +58,7 @@ export function PageShell({ user, title, children, headerActions }: PageShellPro
             {headerActions}
             <div className="hidden flex-col items-end sm:flex">
               <span className="text-sm font-semibold tabular-nums leading-none">
-                {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
               <span className="mt-0.5 text-xs text-muted-foreground">
                 {now.toLocaleDateString([], { weekday: "short", year: "numeric", month: "short", day: "numeric" })}
@@ -67,10 +67,28 @@ export function PageShell({ user, title, children, headerActions }: PageShellPro
             <Button
               variant="ghost"
               size="sm"
+              className="gap-2 text-muted-foreground hover:text-foreground hidden lg:flex"
+              onClick={() => {
+                invalidateCache()
+                localStorage.clear()
+                sessionStorage.clear()
+                // Also clear the SW API cache
+                caches.delete("expense-tracker-api-v1").catch(() => {})
+                globalThis.location.reload()
+              }}
+            >
+              <RefreshCwIcon className="size-4" />
+              <span className="hidden sm:inline">Clear Cache</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               className="gap-2 text-muted-foreground hover:text-foreground"
               onClick={() => {
                 Cookies.remove("token")
-                router.push("/login")
+                invalidateCache()
+                // Hard navigation so middleware sees the cleared cookie
+                globalThis.location.replace("/login")
               }}
             >
               <LogOutIcon className="size-4" />

@@ -270,7 +270,7 @@ export default function DebtsPage() {
                         <div className="flex gap-1 rounded-lg bg-muted p-1">
                             <button
                                 onClick={() => setActiveTab("BORROW")}
-                                className={`flex-1 sm:flex-none rounded-md px-4 py-2 text-sm font-medium transition-colors ${activeTab === "BORROW"
+                                className={`flex-1 sm:flex-none rounded-md px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === "BORROW"
                                     ? "bg-background text-foreground shadow-sm"
                                     : "text-muted-foreground hover:text-foreground"
                                     }`}
@@ -279,7 +279,7 @@ export default function DebtsPage() {
                             </button>
                             <button
                                 onClick={() => setActiveTab("LEND")}
-                                className={`flex-1 sm:flex-none rounded-md px-4 py-2 text-sm font-medium transition-colors ${activeTab === "LEND"
+                                className={`flex-1 sm:flex-none rounded-md px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === "LEND"
                                     ? "bg-background text-foreground shadow-sm"
                                     : "text-muted-foreground hover:text-foreground"
                                     }`}
@@ -491,7 +491,7 @@ export default function DebtsPage() {
                                                             )}
                                                         </div>
                                                         {debt.description && (
-                                                            <p className="mt-0.5 text-xs text-muted-foreground">{debt.description}</p>
+                                                            <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{debt.description}</p>
                                                         )}
                                                         <div className="mt-1 flex items-baseline gap-1">
                                                             <span className={`text-lg font-bold tabular-nums ${activeTab === "BORROW" ? "text-red-500" : "text-green-600"}`}>
@@ -531,12 +531,12 @@ export default function DebtsPage() {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="size-7 text-muted-foreground hover:text-destructive"
+                                                            className="size-8 text-muted-foreground hover:text-destructive"
                                                             disabled={deletingId === debt.id}
                                                             onClick={() => setDeleteTarget(debt)}
                                                             aria-label={`Delete debt for ${debt.person_name}`}
                                                         >
-                                                            <Trash2Icon className="size-3.5" />
+                                                            <Trash2Icon className="size-4" />
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -573,12 +573,12 @@ export default function DebtsPage() {
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="size-7 text-muted-foreground hover:text-destructive"
+                                                    className="size-8 text-muted-foreground hover:text-destructive"
                                                     disabled={deletingId === debt.id}
                                                     onClick={() => setDeleteTarget(debt)}
                                                     aria-label={`Delete debt for ${debt.person_name}`}
                                                 >
-                                                    <Trash2Icon className="size-3.5" />
+                                                    <Trash2Icon className="size-4" />
                                                 </Button>
                                             </div>
                                         </div>

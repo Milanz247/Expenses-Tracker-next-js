@@ -7,18 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import Cookies from "js-cookie"
 import { toast } from "sonner"
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip as RechartsTip,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from "recharts"
+import dynamic from "next/dynamic"
 import {
   ArrowRightLeftIcon,
   TrendingUpIcon,
@@ -50,6 +39,16 @@ import {
   AuthError,
 } from "@/lib/api"
 import { usePreferences } from "@/lib/preferences"
+
+const DashboardCharts = dynamic(() => import("./dashboard-charts"), {
+  ssr: false,
+  loading: () => (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Skeleton className="h-80 rounded-xl" />
+      <Skeleton className="h-80 rounded-xl" />
+    </div>
+  ),
+})
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface User {
@@ -108,11 +107,6 @@ const TX_LABELS: Record<"income" | "expense" | "transfer", string> = {
   expense: "Expense",
   transfer: "Transfer",
 }
-
-const DONUT_COLORS = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e",
-  "#06b6d4", "#8b5cf6", "#ec4899", "#14b8a6",
-]
 
 const nativeSelectClass =
   "flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -302,9 +296,9 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stat cards – horizontal scroll on mobile */}
-          <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
-            <Card className="min-w-50 shrink-0 sm:min-w-0">
+          {/* Stat cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Card className="min-w-0">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Balance</CardTitle>
                 <div className="flex size-9 items-center justify-center rounded-full bg-primary/10">
@@ -319,7 +313,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="min-w-50 shrink-0 sm:min-w-0">
+            <Card className="min-w-0">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Income</CardTitle>
                 <div className="flex size-9 items-center justify-center rounded-full bg-green-500/10">
@@ -334,7 +328,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="min-w-50 shrink-0 sm:min-w-0">
+            <Card className="min-w-0">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Expenses</CardTitle>
                 <div className="flex size-9 items-center justify-center rounded-full bg-red-500/10">
@@ -385,92 +379,15 @@ export default function DashboardPage() {
           )}
 
           {/* Charts row */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {/* Donut – Expense Breakdown */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Expense Breakdown</CardTitle>
-                <p className="text-xs text-muted-foreground">Current month by category</p>
-              </CardHeader>
-              <CardContent>
-                {summary.expense_breakdown.length === 0 ? (
-                  <div className="flex h-44 items-center justify-center text-sm text-muted-foreground">
-                    No expenses recorded this month
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4">
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie
-                          data={summary.expense_breakdown}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={85}
-                          dataKey="amount"
-                          nameKey="category"
-                          paddingAngle={2}
-                        >
-                          {summary.expense_breakdown.map((_, i) => (
-                            <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <RechartsTip
-                          formatter={(v: number) => formatCurrency(v)}
-                          contentStyle={{
-                            borderRadius: "8px",
-                            border: "1px solid var(--border)",
-                            background: "var(--card)",
-                          }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="flex w-full flex-wrap justify-center gap-x-4 gap-y-1.5">
-                      {summary.expense_breakdown.map((item, i) => (
-                        <div key={item.category} className="flex items-center gap-1.5 text-xs">
-                          <span
-                            className="inline-block size-2 rounded-full"
-                            style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
-                          />
-                          <span className="text-muted-foreground">{item.category || "Uncategorized"}</span>
-                          <span className="font-medium">{currencySymbol}{item.amount.toFixed(0)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Bar – Weekly Spending */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Weekly Spending</CardTitle>
-                <p className="text-xs text-muted-foreground">Expenses over the last 7 days</p>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={summary.weekly_spending} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <RechartsTip
-                      formatter={(v: number) => [formatCurrency(v), "Spent"]}
-                      contentStyle={{
-                        borderRadius: "8px",
-                        border: "1px solid var(--border)",
-                        background: "var(--card)",
-                      }}
-                    />
-                    <Bar dataKey="amount" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
+          <DashboardCharts
+            expenseBreakdown={summary.expense_breakdown}
+            weeklySpending={summary.weekly_spending}
+            formatCurrency={formatCurrency}
+            currencySymbol={currencySymbol}
+          />
 
           {/* Recent Transactions */}
-          <Card>
+          <Card className="min-w-0 overflow-hidden">
             <CardHeader>
               <CardTitle className="text-base">Recent Transactions</CardTitle>
               <p className="mt-0.5 text-xs text-muted-foreground">Last 5 transactions</p>
@@ -524,7 +441,7 @@ export default function DashboardPage() {
                     </table>
                   </div>
                   {/* Mobile cards */}
-                  <div className="flex flex-col gap-2 p-3 md:hidden">
+                  <div className="flex flex-col gap-2.5 p-4 md:hidden">
                     {summary.recent_transactions.map((tx) => (
                       <div key={tx.id} className="flex items-center justify-between rounded-lg border border-border p-3">
                         <div className="flex-1 min-w-0">

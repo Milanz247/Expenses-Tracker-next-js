@@ -263,25 +263,25 @@ export default function BudgetsPage() {
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-semibold">{budget.category_name}</span>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-7 text-muted-foreground hover:text-foreground"
+                              className="size-8 text-muted-foreground hover:text-foreground"
                               onClick={() => openEdit(budget)}
                               aria-label={`Edit ${budget.category_name} budget`}
                             >
-                              <PencilIcon className="size-3.5" />
+                              <PencilIcon className="size-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-7 text-muted-foreground hover:text-destructive"
+                              className="size-8 text-muted-foreground hover:text-destructive"
                               disabled={deletingId === budget.id}
                               onClick={() => handleDelete(budget.id)}
                               aria-label={`Delete ${budget.category_name} budget`}
                             >
-                              <Trash2Icon className="size-3.5" />
+                              <Trash2Icon className="size-4" />
                             </Button>
                           </div>
                         </div>

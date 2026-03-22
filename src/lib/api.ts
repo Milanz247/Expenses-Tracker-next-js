@@ -1,11 +1,28 @@
 import Cookies from "js-cookie";
 
-const API_URL = "http://localhost:8081";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
 
 export class AuthError extends Error {
   constructor(message = "Session expired. Please log in again.") {
     super(message);
     this.name = "AuthError";
+  }
+}
+
+// ─── In-memory GET cache (stale-while-revalidate) ──────────────────────────
+const cache = new Map<string, { data: unknown; ts: number }>();
+const inflight = new Map<string, Promise<unknown>>();
+const CACHE_TTL = 15_000; // 15 seconds
+
+/** Bust all cached entries (call after mutations) */
+export function invalidateCache() {
+  cache.clear();
+}
+
+/** Bust entries matching a prefix, e.g. "/api/accounts" */
+export function invalidateCachePrefix(prefix: string) {
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) cache.delete(key);
   }
 }
 
@@ -46,6 +63,32 @@ async function request(endpoint: string, options: RequestInit = {}) {
   return data;
 }
 
+/** Cached GET — deduplicates in-flight requests and returns stale data while revalidating */
+function cachedGet(endpoint: string) {
+  const hit = cache.get(endpoint);
+  if (hit && Date.now() - hit.ts < CACHE_TTL) {
+    return Promise.resolve(hit.data);
+  }
+
+  // Deduplicate concurrent requests for the same endpoint
+  const existing = inflight.get(endpoint);
+  if (existing) return existing;
+
+  const promise = request(endpoint)
+    .then((data) => {
+      cache.set(endpoint, { data, ts: Date.now() });
+      inflight.delete(endpoint);
+      return data;
+    })
+    .catch((err) => {
+      inflight.delete(endpoint);
+      throw err;
+    });
+
+  inflight.set(endpoint, promise);
+  return promise;
+}
+
 // Auth
 export async function register(name: string, email: string, password: string) {
   return request("/register", {
@@ -62,12 +105,12 @@ export async function login(email: string, password: string) {
 }
 
 export async function getMe() {
-  return request("/api/me");
+  return cachedGet("/api/me");
 }
 
 // Accounts
 export async function getAccounts() {
-  return request("/api/accounts");
+  return cachedGet("/api/accounts");
 }
 
 export async function createAccount(data: {
@@ -75,10 +118,13 @@ export async function createAccount(data: {
   type: "wallet" | "bank" | "card";
   balance: number;
 }) {
-  return request("/api/accounts", {
+  const res = await request("/api/accounts", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  invalidateCachePrefix("/api/accounts");
+  invalidateCachePrefix("/api/summary");
+  return res;
 }
 
 // Transactions
@@ -91,10 +137,12 @@ export async function createTransaction(data: {
   description?: string;
   date?: string;
 }) {
-  return request("/api/transactions", {
+  const res = await request("/api/transactions", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  invalidateCache();
+  return res;
 }
 
 export async function getTransactions(params?: {
@@ -113,27 +161,33 @@ export async function getTransactions(params?: {
         )
       ).toString()
     : "";
-  return request(`/api/transactions${qs}`);
+  return cachedGet(`/api/transactions${qs}`);
 }
 
 export async function deleteTransaction(id: number) {
-  return request(`/api/transactions/${id}`, { method: "DELETE" });
+  const res = await request(`/api/transactions/${id}`, { method: "DELETE" });
+  invalidateCache();
+  return res;
 }
 
 // Categories
 export async function getCategories() {
-  return request("/api/categories");
+  return cachedGet("/api/categories");
 }
 
 export async function createCategory(data: { name: string; type: "income" | "expense" | "transfer" }) {
-  return request("/api/categories", {
+  const res = await request("/api/categories", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  invalidateCachePrefix("/api/categories");
+  return res;
 }
 
 export async function deleteCategory(id: number) {
-  return request(`/api/categories/${id}`, { method: "DELETE" });
+  const res = await request(`/api/categories/${id}`, { method: "DELETE" });
+  invalidateCachePrefix("/api/categories");
+  return res;
 }
 
 // Budgets
@@ -143,10 +197,12 @@ export async function createBudget(data: {
   month: number;
   year: number;
 }) {
-  return request("/api/budgets", {
+  const res = await request("/api/budgets", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  invalidateCachePrefix("/api/budgets");
+  return res;
 }
 
 export async function getBudgets(params?: { month?: number; year?: number }) {
@@ -159,16 +215,18 @@ export async function getBudgets(params?: { month?: number; year?: number }) {
         )
       ).toString()
     : "";
-  return request(`/api/budgets${qs}`);
+  return cachedGet(`/api/budgets${qs}`);
 }
 
 export async function deleteBudget(id: number) {
-  return request(`/api/budgets/${id}`, { method: "DELETE" });
+  const res = await request(`/api/budgets/${id}`, { method: "DELETE" });
+  invalidateCachePrefix("/api/budgets");
+  return res;
 }
 
 // Summary
 export async function getSummary() {
-  return request("/api/summary");
+  return cachedGet("/api/summary");
 }
 
 // Debts
@@ -180,10 +238,13 @@ export async function createDebt(data: {
   type: "LEND" | "BORROW";
   due_date?: string;
 }) {
-  return request("/api/debts", {
+  const res = await request("/api/debts", {
     method: "POST",
     body: JSON.stringify(data),
   });
+  invalidateCachePrefix("/api/debts");
+  invalidateCachePrefix("/api/accounts");
+  return res;
 }
 
 export async function getDebts(params?: { type?: string; status?: string }) {
@@ -197,22 +258,28 @@ export async function getDebts(params?: { type?: string; status?: string }) {
         )
       ).toString()
     : "";
-  return request(`/api/debts${qs}`);
+  return cachedGet(`/api/debts${qs}`);
 }
 
 export async function repayDebt(id: number, data: { account_id: number; amount: number }) {
-  return request(`/api/debts/${id}/repay`, {
+  const res = await request(`/api/debts/${id}/repay`, {
     method: "POST",
     body: JSON.stringify(data),
   });
+  invalidateCachePrefix("/api/debts");
+  invalidateCachePrefix("/api/accounts");
+  return res;
 }
 
 export async function getDebtSummary() {
-  return request("/api/debts/summary");
+  return cachedGet("/api/debts/summary");
 }
 
 export async function deleteDebt(id: number) {
-  return request(`/api/debts/${id}`, { method: "DELETE" });
+  const res = await request(`/api/debts/${id}`, { method: "DELETE" });
+  invalidateCachePrefix("/api/debts");
+  invalidateCachePrefix("/api/accounts");
+  return res;
 }
 
 // User Profile & Preferences
@@ -221,17 +288,20 @@ export async function updateProfile(data: {
   email: string;
   profile_pic?: string;
 }) {
-  return request("/api/user/profile", {
+  const res = await request("/api/user/profile", {
     method: "PUT",
     body: JSON.stringify(data),
   });
+  invalidateCachePrefix("/api/me");
+  invalidateCachePrefix("/api/user");
+  return res;
 }
 
 export async function changePassword(data: {
   old_password: string;
   new_password: string;
 }) {
-  return request("/api/user/password", {
+  return await request("/api/user/password", {
     method: "PUT",
     body: JSON.stringify(data),
   });

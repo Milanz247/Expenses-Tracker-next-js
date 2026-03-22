@@ -225,17 +225,17 @@ export default function CategoriesPage() {
                               key={`${type}-${cat.id}`}
                               className="border-b border-border last:border-0 transition-colors hover:bg-muted/30"
                             >
-                              <td className="px-4 py-3 font-medium">{cat.name}</td>
-                              <td className="px-4 py-3 text-right">
+                              <td className="px-4 py-3.5 font-medium">{cat.name}</td>
+                              <td className="px-4 py-3.5 text-right">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="size-7 text-muted-foreground hover:text-destructive"
+                                  className="size-8 text-muted-foreground hover:text-destructive"
                                   disabled={deletingId === cat.id}
                                   onClick={() => handleDelete(cat.id)}
                                   aria-label={`Delete ${cat.name}`}
                                 >
-                                  <Trash2Icon className="size-3.5" />
+                                  <Trash2Icon className="size-4" />
                                 </Button>
                               </td>
                             </tr>
