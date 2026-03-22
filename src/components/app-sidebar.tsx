@@ -7,6 +7,9 @@ import {
   LayoutDashboardIcon,
   ArrowRightLeftIcon,
   TagIcon,
+  PiggyBankIcon,
+  HandCoinsIcon,
+  SettingsIcon,
 } from "lucide-react"
 
 import {
@@ -27,6 +30,9 @@ const navItems = [
   { title: "Accounts", url: "/accounts", icon: WalletIcon },
   { title: "Transactions", url: "/transactions", icon: ArrowRightLeftIcon },
   { title: "Categories", url: "/categories", icon: TagIcon },
+  { title: "Budgets", url: "/budgets", icon: PiggyBankIcon },
+  { title: "Debts", url: "/debts", icon: HandCoinsIcon },
+  { title: "Settings", url: "/settings", icon: SettingsIcon },
 ]
 
 export function AppSidebar({

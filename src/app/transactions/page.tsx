@@ -15,6 +15,8 @@ import {
   SearchIcon,
   XIcon,
   PlusIcon,
+  Trash2Icon,
+  LoaderIcon,
 } from "lucide-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -41,12 +43,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { getMe, getAccounts, getTransactions, createTransaction, getCategories, AuthError } from "@/lib/api"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { getMe, getAccounts, getTransactions, createTransaction, deleteTransaction, getCategories, AuthError } from "@/lib/api"
+import { usePreferences } from "@/lib/preferences"
 
 interface Account {
   id: number
   name: string
   type: "wallet" | "bank" | "card"
+  balance: number
 }
 
 interface Transaction {
@@ -111,6 +125,7 @@ const TYPE_CONFIG = {
 
 export default function TransactionsPage() {
   const router = useRouter()
+  const { formatCurrency } = usePreferences()
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -133,6 +148,10 @@ export default function TransactionsPage() {
       date: new Date().toISOString().split("T")[0],
     },
   })
+
+  // Delete
+  const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Filters
   const [filterType, setFilterType] = useState("")
@@ -243,6 +262,35 @@ export default function TransactionsPage() {
     }
   }
 
+  async function onDeleteTransaction() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteTransaction(deleteTarget.id)
+      if (deleteTarget.category === "Lending" || deleteTarget.category === "Borrowing") {
+        toast.success("Debt record, all repayment history, and transaction deleted. Balances reversed.")
+      } else if (deleteTarget.category === "Debt Repayment") {
+        toast.success("Repayment deleted. Debt status updated and balance reversed.")
+      } else {
+        toast.success("Transaction deleted and balance updated!")
+      }
+      setDeleteTarget(null)
+      fetchData()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete transaction"
+      if (msg.toLowerCase().includes("funds") || msg.toLowerCase().includes("negative") || msg.toLowerCase().includes("cannot delete")) {
+        toast.error("Action Denied", {
+          description: msg,
+          duration: 6000,
+        })
+      } else {
+        toast.error(msg)
+      }
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const hasFilters = filterType || filterAccount || filterCategory || filterStart || filterEnd
 
   const totals = transactions.reduce(
@@ -323,8 +371,8 @@ export default function TransactionsPage() {
                 {hasFilters ? " (filtered)" : ""}
                 {transactions.length > 0 && (
                   <span>
-                    {" "}— <span className="text-green-600">+${totals.income.toFixed(2)}</span>{" "}
-                    <span className="text-red-500">-${totals.expense.toFixed(2)}</span>
+                    {" "}— <span className="text-green-600">+{formatCurrency(totals.income)}</span>{" "}
+                    <span className="text-red-500">-{formatCurrency(totals.expense)}</span>
                   </span>
                 )}
               </p>
@@ -377,10 +425,16 @@ export default function TransactionsPage() {
                       <option value={0}>Select account</option>
                       {accounts.map((a) => (
                         <option key={a.id} value={a.id}>
-                          {a.name}
+                          {a.name} — {formatCurrency(a.balance)}
                         </option>
                       ))}
                     </select>
+                    {fromAccountId > 0 && (() => {
+                      const sel = accounts.find((a) => a.id === fromAccountId);
+                      return sel ? (
+                        <p className="text-xs text-muted-foreground">Available Balance: <span className="font-semibold text-foreground">{formatCurrency(sel.balance)}</span></p>
+                      ) : null;
+                    })()}
                   </div>
 
                   {/* To Account (transfer only) */}
@@ -420,6 +474,14 @@ export default function TransactionsPage() {
                         {txForm.formState.errors.amount.message}
                       </p>
                     )}
+                    {(() => {
+                      const amt = txForm.watch("amount");
+                      const sel = accounts.find((a) => a.id === fromAccountId);
+                      if ((txType === "expense" || txType === "transfer") && sel && amt > sel.balance) {
+                        return <p className="text-xs text-destructive">Insufficient balance (available: {formatCurrency(sel.balance)})</p>;
+                      }
+                      return null;
+                    })()}
                   </div>
 
                   {/* Category dropdown */}
@@ -465,7 +527,11 @@ export default function TransactionsPage() {
                     type="submit"
                     size="lg"
                     className="w-full"
-                    disabled={txForm.formState.isSubmitting}
+                    disabled={txForm.formState.isSubmitting || (() => {
+                      const amt = txForm.watch("amount");
+                      const sel = accounts.find((a) => a.id === fromAccountId);
+                      return (txType === "expense" || txType === "transfer") && !!sel && amt > sel.balance;
+                    })()}
                   >
                     {txForm.formState.isSubmitting ? "Adding…" : "Add Transaction"}
                   </Button>
@@ -565,6 +631,7 @@ export default function TransactionsPage() {
                       <th className="px-4 py-3 text-left font-medium text-muted-foreground">Category</th>
                       <th className="px-4 py-3 text-left font-medium text-muted-foreground">Description</th>
                       <th className="px-4 py-3 text-right font-medium text-muted-foreground">Amount</th>
+                      <th className="w-12 px-4 py-3"><span className="sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -609,8 +676,18 @@ export default function TransactionsPage() {
                                 : "text-blue-500"
                             }`}
                           >
-                            {tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}$
-                            {tx.amount.toFixed(2)}
+                            {tx.type === "income" ? "+" : tx.type === "expense" ? "-" : ""}{formatCurrency(tx.amount)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="size-8 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteTarget(tx)}
+                            >
+                              <Trash2Icon className="size-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
                           </td>
                         </tr>
                       )
@@ -621,6 +698,32 @@ export default function TransactionsPage() {
             </div>
           )}
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget?.category === "Lending" || deleteTarget?.category === "Borrowing"
+                  ? "Warning: This is the initial record for a debt. Deleting this will permanently remove the entire debt record and all payment history. Are you sure?"
+                  : deleteTarget?.category === "Debt Repayment"
+                  ? "Deleting this repayment will reopen the debt as unsettled and adjust your account balance. Continue?"
+                  : "Are you sure? This will delete the transaction and reverse its impact on your account balance."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={deleting}
+                onClick={onDeleteTransaction}
+              >
+                {deleting ? <><LoaderIcon className="size-4 animate-spin" /> Deleting…</> : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarInset>
     </SidebarProvider>
   )

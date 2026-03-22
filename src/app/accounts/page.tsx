@@ -47,6 +47,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { getMe, getAccounts, createAccount, AuthError } from "@/lib/api"
+import { usePreferences } from "@/lib/preferences"
 
 interface Account {
   id: number
@@ -70,6 +71,7 @@ type AccountFormData = z.infer<typeof accountSchema>
 
 export default function AccountsPage() {
   const router = useRouter()
+  const { formatCurrency } = usePreferences()
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
@@ -319,7 +321,7 @@ export default function AccountsPage() {
                           account.balance < 0 ? "text-destructive" : ""
                         }`}
                       >
-                        ${account.balance.toFixed(2)}
+                        {formatCurrency(account.balance)}
                       </p>
                     </CardContent>
                   </Card>

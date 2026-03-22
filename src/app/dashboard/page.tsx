@@ -27,6 +27,7 @@ import {
   WalletIcon,
   PlusIcon,
   MinusIcon,
+  HandCoinsIcon,
 } from "lucide-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -61,6 +62,7 @@ import {
   getSummary,
   AuthError,
 } from "@/lib/api"
+import { usePreferences } from "@/lib/preferences"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface User {
@@ -99,6 +101,8 @@ interface Summary {
   expense_breakdown: { category: string; amount: number }[]
   recent_transactions: RecentTx[]
   weekly_spending: { day: string; amount: number }[]
+  debt_to_pay: number
+  debt_to_receive: number
 }
 
 // ─── Form schema ──────────────────────────────────────────────────────────────
@@ -133,11 +137,14 @@ const defaultSummary: Summary = {
   expense_breakdown: [],
   recent_transactions: [],
   weekly_spending: [],
+  debt_to_pay: 0,
+  debt_to_receive: 0,
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter()
+  const { formatCurrency, currencySymbol } = usePreferences()
   const [user, setUser] = useState<User | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -365,7 +372,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold tabular-nums ${summary.total_balance < 0 ? "text-destructive" : ""}`}>
-                  ${summary.total_balance.toFixed(2)}
+                  {formatCurrency(summary.total_balance)}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">Across all accounts</p>
               </CardContent>
@@ -380,7 +387,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold tabular-nums text-green-600">
-                  +${summary.monthly_income.toFixed(2)}
+                  +{formatCurrency(summary.monthly_income)}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">This month</p>
               </CardContent>
@@ -395,12 +402,46 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold tabular-nums text-red-500">
-                  -${summary.monthly_expenses.toFixed(2)}
+                  -{formatCurrency(summary.monthly_expenses)}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
           </div>
+
+          {/* Debt summary cards */}
+          {(summary.debt_to_pay > 0 || summary.debt_to_receive > 0) && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">To Pay</CardTitle>
+                  <div className="flex size-9 items-center justify-center rounded-full bg-red-500/10">
+                    <HandCoinsIcon className="size-4 text-red-500" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold tabular-nums text-red-500">
+                    {formatCurrency(summary.debt_to_pay)}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">Outstanding borrowings</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">To Receive</CardTitle>
+                  <div className="flex size-9 items-center justify-center rounded-full bg-green-500/10">
+                    <HandCoinsIcon className="size-4 text-green-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold tabular-nums text-green-600">
+                    {formatCurrency(summary.debt_to_receive)}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">Outstanding lendings</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Charts row */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -434,7 +475,7 @@ export default function DashboardPage() {
                           ))}
                         </Pie>
                         <RechartsTip
-                          formatter={(v: number) => `$${v.toFixed(2)}`}
+                          formatter={(v: number) => formatCurrency(v)}
                           contentStyle={{
                             borderRadius: "8px",
                             border: "1px solid var(--border)",
@@ -451,7 +492,7 @@ export default function DashboardPage() {
                             style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }}
                           />
                           <span className="text-muted-foreground">{item.category || "Uncategorized"}</span>
-                          <span className="font-medium">${item.amount.toFixed(0)}</span>
+                          <span className="font-medium">{currencySymbol}{item.amount.toFixed(0)}</span>
                         </div>
                       ))}
                     </div>
@@ -473,7 +514,7 @@ export default function DashboardPage() {
                     <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                     <RechartsTip
-                      formatter={(v: number) => [`$${v.toFixed(2)}`, "Spent"]}
+                      formatter={(v: number) => [formatCurrency(v), "Spent"]}
                       contentStyle={{
                         borderRadius: "8px",
                         border: "1px solid var(--border)",
@@ -532,7 +573,7 @@ export default function DashboardPage() {
                                 : "text-blue-500"
                             }`}
                           >
-                            {tx.type === "income" ? "+" : tx.type === "expense" ? "−" : ""}${tx.amount.toFixed(2)}
+                            {tx.type === "income" ? "+" : tx.type === "expense" ? "−" : ""}{formatCurrency(tx.amount)}
                           </td>
                         </tr>
                       ))}
@@ -584,10 +625,16 @@ export default function DashboardPage() {
                   <option value={0}>Select account</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} — ${a.balance.toFixed(2)}
+                      {a.name} — {formatCurrency(a.balance)}
                     </option>
                   ))}
                 </select>
+                {fromAccountId > 0 && (() => {
+                  const sel = accounts.find((a) => a.id === fromAccountId)
+                  return sel ? (
+                    <p className="text-xs text-muted-foreground">Available Balance: <span className="font-semibold text-foreground">{formatCurrency(sel.balance)}</span></p>
+                  ) : null
+                })()}
               </div>
 
               {/* To Account (transfer only) */}
@@ -604,7 +651,7 @@ export default function DashboardPage() {
                       .filter((a) => a.id !== fromAccountId)
                       .map((a) => (
                         <option key={a.id} value={a.id}>
-                          {a.name} — ${a.balance.toFixed(2)}
+                          {a.name} — {formatCurrency(a.balance)}
                         </option>
                       ))}
                   </select>
@@ -625,6 +672,14 @@ export default function DashboardPage() {
                 {txForm.formState.errors.amount && (
                   <p className="text-xs text-destructive">{txForm.formState.errors.amount.message}</p>
                 )}
+                {(() => {
+                  const amt = txForm.watch("amount")
+                  const sel = accounts.find((a) => a.id === fromAccountId)
+                  if ((txType === "expense" || txType === "transfer") && sel && amt > sel.balance) {
+                    return <p className="text-xs text-destructive">Insufficient balance (available: {formatCurrency(sel.balance)})</p>
+                  }
+                  return null
+                })()}
               </div>
 
               {/* Category */}
@@ -658,7 +713,11 @@ export default function DashboardPage() {
                 type="submit"
                 size="lg"
                 className="w-full"
-                disabled={txForm.formState.isSubmitting}
+                disabled={txForm.formState.isSubmitting || (() => {
+                  const amt = txForm.watch("amount")
+                  const sel = accounts.find((a) => a.id === fromAccountId)
+                  return (txType === "expense" || txType === "transfer") && !!sel && amt > sel.balance
+                })()}
               >
                 {txForm.formState.isSubmitting ? "Adding…" : "Add Transaction"}
               </Button>

@@ -116,6 +116,10 @@ export async function getTransactions(params?: {
   return request(`/api/transactions${qs}`);
 }
 
+export async function deleteTransaction(id: number) {
+  return request(`/api/transactions/${id}`, { method: "DELETE" });
+}
+
 // Categories
 export async function getCategories() {
   return request("/api/categories");
@@ -132,8 +136,114 @@ export async function deleteCategory(id: number) {
   return request(`/api/categories/${id}`, { method: "DELETE" });
 }
 
+// Budgets
+export async function createBudget(data: {
+  category_id: number;
+  amount: number;
+  month: number;
+  year: number;
+}) {
+  return request("/api/budgets", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getBudgets(params?: { month?: number; year?: number }) {
+  const qs = params
+    ? "?" + new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(params)
+            .filter(([, v]) => v !== undefined)
+            .map(([k, v]) => [k, String(v)])
+        )
+      ).toString()
+    : "";
+  return request(`/api/budgets${qs}`);
+}
+
+export async function deleteBudget(id: number) {
+  return request(`/api/budgets/${id}`, { method: "DELETE" });
+}
+
 // Summary
 export async function getSummary() {
   return request("/api/summary");
+}
+
+// Debts
+export async function createDebt(data: {
+  account_id: number;
+  person_name: string;
+  description?: string;
+  amount: number;
+  type: "LEND" | "BORROW";
+  due_date?: string;
+}) {
+  return request("/api/debts", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getDebts(params?: { type?: string; status?: string }) {
+  const qs = params
+    ? "?" +
+      new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(params)
+            .filter(([, v]) => v !== undefined && v !== "")
+            .map(([k, v]) => [k, String(v)])
+        )
+      ).toString()
+    : "";
+  return request(`/api/debts${qs}`);
+}
+
+export async function repayDebt(id: number, data: { account_id: number; amount: number }) {
+  return request(`/api/debts/${id}/repay`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getDebtSummary() {
+  return request("/api/debts/summary");
+}
+
+export async function deleteDebt(id: number) {
+  return request(`/api/debts/${id}`, { method: "DELETE" });
+}
+
+// User Profile & Preferences
+export async function updateProfile(data: {
+  name: string;
+  email: string;
+  profile_pic?: string;
+}) {
+  return request("/api/user/profile", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function changePassword(data: {
+  old_password: string;
+  new_password: string;
+}) {
+  return request("/api/user/password", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updatePreferences(data: {
+  currency: string;
+  language: string;
+}) {
+  return request("/api/user/preferences", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 }
 
