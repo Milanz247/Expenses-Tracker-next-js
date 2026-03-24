@@ -14,15 +14,24 @@ const cache = new Map<string, { data: unknown; ts: number }>();
 const inflight = new Map<string, Promise<unknown>>();
 const CACHE_TTL = 15_000; // 15 seconds
 
-/** Bust all cached entries (call after mutations) */
+/** Bust all cached entries and the SW's API cache (call after mutations) */
 export function invalidateCache() {
   cache.clear();
+  // Also clear the service worker's persistent API cache so the next
+  // GET immediately fetches fresh data instead of serving stale SW cache.
+  if (typeof caches !== "undefined") {
+    caches.delete("expense-tracker-api-v2").catch(() => {});
+  }
 }
 
 /** Bust entries matching a prefix, e.g. "/api/accounts" */
 export function invalidateCachePrefix(prefix: string) {
   for (const key of cache.keys()) {
     if (key.startsWith(prefix)) cache.delete(key);
+  }
+  // Also clear the SW cache so stale responses aren't served.
+  if (typeof caches !== "undefined") {
+    caches.delete("expense-tracker-api-v2").catch(() => {});
   }
 }
 

@@ -72,8 +72,6 @@ export function PageShell({ user, title, children, headerActions }: PageShellPro
                 invalidateCache()
                 localStorage.clear()
                 sessionStorage.clear()
-                // Also clear the SW API cache
-                caches.delete("expense-tracker-api-v1").catch(() => {})
                 globalThis.location.reload()
               }}
             >
@@ -111,7 +109,7 @@ export function PageShellSkeleton({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <AppSidebar user={{ name: "", email: "", avatar: "" }} />
       <SidebarInset>
-        <div className="flex flex-1 flex-col gap-6 p-6">
+        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 page-content">
           {children}
         </div>
       </SidebarInset>

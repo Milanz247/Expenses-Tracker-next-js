@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     title: "Expense Tracker",
   },
   icons: {
-    apple: "/icons/icon.svg",
+    apple: "/icons/icon-192.png",
   },
 };
 
